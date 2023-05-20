@@ -247,7 +247,6 @@ def encrypt_directory(
     keypath: str | None = None,
     key: bytes = None,
     error_if_enc_is_file: bool = True,
-    error_if_key_is_file: bool = True,
 ):
     """Uses `encrypt_file` for all files in a directory. Keeps the original directory structure.
 
@@ -257,7 +256,6 @@ def encrypt_directory(
         - keypath (str | None, optional): Path for the key to be saved at, including the filename. Defaults to None, meaning it won't be saved.
         - key (bytes, optional): You can provide a specific key here. Defaults to None.
         - error_if_enc_is_file (bool, optional): Raise an exception if enc_filepath is already a file. Defaults to True.
-        - error_if_key_is_file (bool, optional): Raise an exception if keypath is already a file. Defaults to True.
 
     Returns:
         bytes: The used key.
@@ -283,9 +281,7 @@ def encrypt_directory(
         for sub_index, f in enumerate(files):
             fp = os.path.join(root, f)
             nfp = os.path.join(enc_dir_path, sub_path, f)
-            encrypt_file(
-                fp, nfp, keypath, key, error_if_enc_is_file, error_if_key_is_file
-            )
+            encrypt_file(fp, nfp, keypath, key, error_if_enc_is_file, False)
             main_and_sub_progress_printer(
                 main_index + 1,
                 l1,
