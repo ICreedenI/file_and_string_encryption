@@ -481,8 +481,8 @@ def load_password_encrypted_key(
     """Load the password encrypted key from a file.
 
     Args:
-        keypath (str): Path to the file containing the password encrypted key.
-        password (str | None, optional): If the key is password encrypted, you obviously need the password. Defaults to None.
+        - keypath (str): Path to the file containing the password encrypted key.
+        - password (str | None, optional): If the key is password encrypted, you obviously need the password. Defaults to None.
 
     Returns:
         str: The decrypted key.
