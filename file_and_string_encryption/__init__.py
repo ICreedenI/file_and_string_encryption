@@ -19,4 +19,4 @@ from .file_and_string_encryption import (
     verfiy_hashed_password_with_argon2,
 )
 
-__version__ = "0.0.3"
+__version__ = "0.0.4"

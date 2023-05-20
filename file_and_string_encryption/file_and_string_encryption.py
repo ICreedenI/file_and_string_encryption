@@ -223,7 +223,7 @@ def decrypt_string_with_password(token: bytes, password: str) -> str:
     return pw
 
 
-def encrypt_data(data: bytes, key: bytes = None) -> tuple(bytes):
+def encrypt_data(data: bytes, key: bytes = None) -> tuple[bytes]:
     """Encypt data using a key. The data must be bytes. You can provide your own key if you want.
      Data can be converted to bytes using pickle. For convenience there is a `data_to_bytes_using_pickle` function which literally is `pickle.dumps(data)`.
 
@@ -232,7 +232,7 @@ def encrypt_data(data: bytes, key: bytes = None) -> tuple(bytes):
         - key (bytes, optional): Specified key to use. Defaults to None.
 
     Returns:
-        tuple(bytes): Tuple containing the encrypted data and the key.
+        tuple[bytes]: Tuple containing the encrypted data and the key.
     """
     if key == None:
         key = Fernet.generate_key()
