@@ -24,12 +24,15 @@ from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 from passlib.context import CryptContext
 from easy_tasks import main_and_sub_progress_printer
+import pickle
 
 backend = default_backend()
 iterations = 100_000
 
 
-def _derive_key(password: bytes, salt: bytes, iterations: int = iterations) -> bytes:
+def derive_key_from_password(
+    password: bytes, salt: bytes, iterations: int = iterations
+) -> bytes:
     """Derive a secret key from a given password and salt"""
     kdf = PBKDF2HMAC(
         algorithm=hashes.SHA256(),
@@ -45,7 +48,7 @@ def password_encrypt_bytes(
     message: bytes, password: str, iterations: int = iterations
 ) -> bytes:
     salt = secrets_token_bytes(16)
-    key = _derive_key(password.encode(), salt, iterations)
+    key = derive_key_from_password(password.encode(), salt, iterations)
     return b64e(
         b"%b%b%b"
         % (
@@ -72,7 +75,7 @@ def encrypt_string_with_password(
     if type(message) != bytes:
         message = message.encode()
     salt = secrets_token_bytes(16)
-    key = _derive_key(password.encode(), salt, iterations)
+    key = derive_key_from_password(password.encode(), salt, iterations)
     return b64e(
         b"%b%b%b"
         % (
@@ -96,16 +99,57 @@ def decrypt_string_with_password(token: bytes, password: str) -> str:
     decoded = b64d(token)
     salt, iter, token = decoded[:16], decoded[16:20], b64e(decoded[20:])
     iterations = int.from_bytes(iter, "big")
-    key = _derive_key(password.encode(), salt, iterations)
+    key = derive_key_from_password(password.encode(), salt, iterations)
     pw = Fernet(key).decrypt(token).decode()
     return pw
+
+
+def data_to_bytes_using_pickle(data):
+    return pickle.dumps(data)
+
+
+def bytes_to_data_using_pickle(data):
+    return pickle.loads(data)
+
+
+def encrypt_data(data: bytes, key: bytes = None) -> tuple(bytes, bytes):
+    """Encypt data using a key. The data must be bytes. You can provide your own key if you want.
+     Data can be converted to bytes using pickle. For convenience there is a `data_to_bytes_using_pickle` function which literally is `pickle.dumps(data)`.
+
+    Args:
+        - data (bytes): Data to encrypt.
+        - key (bytes, optional): Specified key to use. Defaults to None.
+
+    Returns:
+        tuple(bytes, bytes): Tuple containing the encrypted data and the key.
+    """
+    if key == None:
+        key = Fernet.generate_key()
+    fernet = Fernet(key)
+    encrypted = fernet.encrypt(data)
+    return (encrypted, key)
+
+
+def decrypt_data(data: bytes, key: bytes) -> bytes:
+    """Decypt data using a key.
+
+    Args:
+        - data (bytes): Encrypted data to decrypt.
+        - key (bytes): Key to use.
+
+    Returns:
+        bytes: Decrypted data.
+    """
+    fernet = Fernet(key)
+    decrypted = fernet.decrypt(data)
+    return decrypted
 
 
 def password_decrypt_non_string(token: bytes, password: str):
     decoded = b64d(token)
     salt, iter, token = decoded[:16], decoded[16:20], b64e(decoded[20:])
     iterations = int.from_bytes(iter, "big")
-    key = _derive_key(password.encode(), salt, iterations)
+    key = derive_key_from_password(password.encode(), salt, iterations)
     pw = Fernet(key).decrypt(token).decode()
     return pw
 

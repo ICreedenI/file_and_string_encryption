@@ -9,6 +9,11 @@ from .file_and_string_encryption import (
     decrypt_string_with_password,
     generate_password,
     get_random_key,
+    derive_key_from_password,
+    data_to_bytes_using_pickle,
+    bytes_to_data_using_pickle,
+    encrypt_data,
+    decrypt_data,
 )
 
-__version__ = "0.0.0"
+__version__ = "0.0.1"
