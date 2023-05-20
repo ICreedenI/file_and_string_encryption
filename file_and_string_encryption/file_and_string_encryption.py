@@ -474,6 +474,24 @@ def hash_password_with_argon2(password: str, argon2_default_rounds=55):
     return hashed_password
 
 
+def load_password_encrypted_key(
+    keypath: str,
+    password: str | None = None,
+):
+    """Load the password encrypted key from a file.
+
+    Args:
+        keypath (str): Path to the file containing the password encrypted key.
+        password (str | None, optional): If the key is password encrypted, you obviously need the password. Defaults to None.
+
+    Returns:
+        str: The decrypted key.
+    """
+    with open(keypath, "rb") as f:
+        encrypted_key = f.read()
+    return decrypt_string_with_password(encrypted_key, password)
+
+
 def password_decrypt_non_string(token: bytes, password: str):
     decoded = b64d(token)
     salt, iter, token = decoded[:16], decoded[16:20], b64e(decoded[20:])
@@ -504,7 +522,7 @@ def save_password_encrypted_key(
     password: str | None = None,
     error_if_key_is_file: bool = True,
 ):
-    """Save the key returned by an encryption function. Additionally you can encrypt the key by setting the password.
+    """Save the key returned by an encryption function. You can but don't have to encrypt the key with a password.
 
     Args:
         - key (bytes): Key returned by an encryption function.

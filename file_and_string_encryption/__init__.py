@@ -15,6 +15,7 @@ from .file_and_string_encryption import (
     generate_password,
     get_random_key,
     hash_password_with_argon2,
+    load_password_encrypted_key,
     save_password_encrypted_key,
     verfiy_hashed_password_with_argon2,
 )
