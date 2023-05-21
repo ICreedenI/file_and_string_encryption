@@ -24,7 +24,7 @@ here = os.path.abspath(os.path.dirname(__file__))
 with codecs.open(os.path.join(here, "README.md"), encoding="utf-8") as fh:
     long_description = "\n" + fh.read()
 
-VERSION = "0.0.5"
+VERSION = "0.0.6"
 DESCRIPTION = "Simple encryption functions. Do not simply trust this code! Pay attention to how you handle sensitive information!"
 
 # Setting up
@@ -39,7 +39,12 @@ setup(
     packages=find_packages(),
     package_data={},
     include_package_data=True,
-    install_requires=["cryptography", "easy_tasks", "passlib"],
+    install_requires=[
+        "cryptography",
+        "passlib",
+        "colorful_terminal",
+        "easy_tasks",
+    ],
     keywords=["python"],
     classifiers=[
         "Development Status :: 1 - Planning",

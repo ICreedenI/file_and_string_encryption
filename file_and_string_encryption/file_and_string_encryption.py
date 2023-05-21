@@ -3,28 +3,33 @@
 """
 Created on "Datum"
 
-von: https://stackoverflow.com/questions/2490334/simple-way-to-encode-a-string-according-to-a-password
+from: https://stackoverflow.com/questions/2490334/simple-way-to-encode-a-string-according-to-a-password
+André Herber added stuff
 """
 
 
 ### Fernet with password – key derived from password, weakens the security somewhat
 # https://stackoverflow.com/questions/2490334/simple-way-to-encode-a-string-according-to-a-password
 
+
+import os
+import pickle
 from base64 import urlsafe_b64decode as b64d
 from base64 import urlsafe_b64encode as b64e
-import os
-from pathlib import Path
-import binascii
-from secrets import token_bytes as secrets_token_bytes, choice as secrets_choice
-from string import ascii_letters, digits, punctuation
+from random import choice
+from secrets import choice as secrets_choice
+from secrets import token_bytes as secrets_token_bytes
+from string import ascii_letters, ascii_uppercase, digits, punctuation
 
 from cryptography.fernet import Fernet
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 from passlib.context import CryptContext
-from easy_tasks import main_and_sub_progress_printer
-import pickle
+
+from colorful_terminal import *
+from easy_tasks import main_and_sub_progress_printer, pickle_pack, pickle_unpack
+
 
 backend = default_backend()
 
@@ -79,7 +84,7 @@ def decrypt_directory(
     target_dir_path: str,
     enc_dir_path: str,
     keypath: str | None | bytes,
-    error_if_target_is_file: bool = True,
+    override_target: bool = True,
 ):
     """Decrypts all files in a directory. Keeps the original directory structure.
 
@@ -87,7 +92,7 @@ def decrypt_directory(
         - target_dir_path (str): Path for the decrypted directory.
         - enc_dir_path (str): Path to the encrypted directory.
         - keypath (str | None | bytes): Path to the key or alternativley the key itself.
-        - error_if_target_is_file (bool, optional): Raise an exception if target_filepath is already a file. Defaults to True.
+        - override_target (bool, optional): Override the target files if they already exist. Defaults to False.
     """
     enc_dir_path = os.path.normpath(enc_dir_path)
 
@@ -108,7 +113,7 @@ def decrypt_directory(
         for sub_index, f in enumerate(files):
             fp = os.path.join(root, f)
             nfp = os.path.join(target_dir_path, sub_path, f)
-            decrypt_file(nfp, fp, keypath, error_if_target_is_file)
+            decrypt_file(nfp, fp, keypath, override_target)
             main_and_sub_progress_printer(
                 main_index + 1,
                 l1,
@@ -123,7 +128,7 @@ def decrypt_file(
     to_be_filepath: str,
     enc_filepath: str,
     keypath: str | bytes,
-    error_if_target_is_file: bool = True,
+    override_target: bool = False,
 ):
     """Decrypt a file using the generated key. The file was decrypted with encrypt_file.
 
@@ -131,11 +136,8 @@ def decrypt_file(
         - to_be_filepath (str): The path at which the file shall be generated, including the filename.
         - enc_filepath (str): The path to the encrypted file.
         - keypath (str | bytes): The path to the key or alternativley the key itself.
+        - override_target (bool, optional): Override the target file if it already exists. Defaults to False.
     """
-    if error_if_target_is_file and os.path.isfile(to_be_filepath):
-        raise FileExistsError(
-            f"There is already a file in the to_be_filepath location.\n\tto_be_filepath: {to_be_filepath}"
-        )
     if isinstance(keypath, str):
         with open(keypath, "rb") as f:
             key = f.read()
@@ -154,11 +156,18 @@ def decrypt_file(
         decrypted_file.write(decrypted)
     if os.path.isdir(to_be_filepath):
         os.removedirs(to_be_filepath)
+    if override_target:
+        if os.path.isfile(to_be_filepath):
+            os.remove(to_be_filepath)
     os.rename(pre_filepath, to_be_filepath)
 
 
 def decrypt_file_with_password(
-    to_be_filepath: str, enc_filepath: str, keypath: str, password: str
+    to_be_filepath: str,
+    enc_filepath: str,
+    keypath: str,
+    password: str,
+    override_target: bool = False,
 ):
     """Decrypt a file using a password. The file was decrypted using encrypt_file_with_password.
 
@@ -167,6 +176,7 @@ def decrypt_file_with_password(
         - enc_filepath (str): The path to the encrypted file.
         - keypath (str): The path to the encrypted key.
         - password (str): The password to decrypt the actual key.
+        - override_target (bool, optional): Override the target file if it already exists. Defaults to False.
     """
     with open(keypath, "rb") as f:
         enc_key = f.read()
@@ -184,7 +194,53 @@ def decrypt_file_with_password(
         decrypted_file.write(decrypted)
     if os.path.isdir(to_be_filepath):
         os.removedirs(to_be_filepath)
+    if override_target:
+        if os.path.isfile(to_be_filepath):
+            os.remove(to_be_filepath)
     os.rename(pre_filepath, to_be_filepath)
+
+
+def decrypt_hidden_directory(
+    target_dir_path: str,
+    enc_dir_path: str,
+    enc_rename_path: str,
+    keypath: str | bytes = None,
+):
+    """Decrypt a hidden directory. This is the decrytion function to `encrypt_and_hide_directory`.
+
+    Args:
+        target_dir_path (str): Path for the decrypted directory.
+        enc_dir_path (str): Path to the encrypted directory.
+        enc_rename_path (str): Path for the encrypted file containing the directory which has the new and the old file and directory names.
+        keypath (str | bytes, optional): Path to the key or alternativley the key itself. Defaults to None.
+    """
+    colored_print(Fore.GREEN + "decrypt_hidden_directory")
+    print("Reading names for directory contents...")
+
+    if isinstance(keypath, str):
+        with open(keypath, "rb") as f:
+            key = f.read()
+    elif isinstance(keypath, bytes):
+        key = keypath
+
+    renamed_to_path_enc = pickle_unpack(enc_rename_path)
+    renamed_to_path_bytes = decrypt_data(renamed_to_path_enc, key)
+    renamed_to_path = bytes_to_data_using_pickle(renamed_to_path_bytes)
+    renamed_to_path: dict[str, str]
+
+    print("Renaming directory contents...")
+    for seq, fp in list(renamed_to_path.items())[::-1]:
+        os.rename(seq, fp)
+
+    print("Decrypting directory...")
+    decrypt_directory(target_dir_path, enc_dir_path, key, True)
+
+    if target_dir_path != enc_dir_path:
+        print("Renaming directory contents...")
+        for seq, fp in renamed_to_path.items():
+            os.rename(fp, seq)
+
+    print("Decryption done.\n")
 
 
 def decrypt_secret(encrypted_secret, password: str, salt):
@@ -221,6 +277,66 @@ def decrypt_string_with_password(token: bytes, password: str) -> str:
     key = derive_key_from_password(password.encode(), salt, iterations)
     pw = Fernet(key).decrypt(token).decode()
     return pw
+
+
+def encrypt_and_hide_directory(
+    dir_path: str,
+    enc_dir_path: str,
+    enc_rename_path: str,
+    key: bytes = None,
+    keypath: str = None,
+):
+    """Encrypt and hide a directory. You might want to encrypt the key with a password using `save_password_encrypted_key`.
+
+    Args:
+        dir_path (str): Path to the directory to be encypted.
+        enc_dir_path (str): Target path to the encrypted directory.
+        enc_rename_path (str): Path for the encrypted file containing the directory which has the new and the old file and directory names.
+        key (bytes, optional): You can provide your own key. Defaults to None.
+        keypath (str, optional): Path for the file containing the unprotected key. Defaults to None.
+
+    Returns:
+        bytes: Returns the used key.
+    """
+    colored_print(Fore.GREEN + "encrypt_and_hide_directory")
+    print("Encrypting directory...")
+
+    key = encrypt_directory(
+        dir_path,
+        enc_dir_path,
+        keypath,
+        key,
+        error_if_enc_is_file=False,
+    )
+
+    print("Directory encrypted.")
+
+    print("Getting new names for directory contents...")
+
+    seq_to_path = {}
+    for dirpath, dirnames, filenames in os.walk(enc_dir_path, topdown=False):
+        for f in filenames:
+            fp = os.path.join(dirpath, f)
+            seq = get_seq_for_seq_to_path(dirpath, seq_to_path)
+            seq_to_path[seq] = fp
+        for f in dirnames:
+            fp = os.path.join(dirpath, f)
+            seq = get_seq_for_seq_to_path(dirpath, seq_to_path)
+            seq_to_path[seq] = fp
+
+    seq_to_path_bytes = data_to_bytes_using_pickle(seq_to_path)
+    seq_to_path_enc, k = encrypt_data(seq_to_path_bytes, key)
+
+    print("Saving new names for directory contents...")
+    # pickle_pack(seq_to_path, rename_path)
+    pickle_pack(seq_to_path_enc, enc_rename_path)
+
+    print("Renaming directory contents...")
+    for seq, fp in seq_to_path.items():
+        os.rename(fp, seq)
+
+    print("Encryption done.\n")
+    return key
 
 
 def encrypt_data(data: bytes, key: bytes = None) -> tuple[bytes]:
@@ -446,6 +562,12 @@ def generate_password(length=16):
     return password
 
 
+def generate_random_alphanumeric_string(length=25):
+    chars = ascii_uppercase + digits
+    random_str = "".join(choice(chars) for _ in range(length))
+    return random_str
+
+
 def get_random_key():
     """Generate a random key.
 
@@ -453,6 +575,14 @@ def get_random_key():
         bytes: The key generated by Fernet.generate_key()
     """
     return Fernet.generate_key()
+
+
+def get_seq_for_seq_to_path(dirpath, seq_to_path=None):
+    "A function for `encrypt_and_hide_directory`"
+    seq = os.path.join(dirpath, generate_random_alphanumeric_string())
+    # while seq in seq_to_path.keys():
+    #     seq = os.path.join(dirpath, generate_random_alphanumeric_string())
+    return seq
 
 
 def hash_password_with_argon2(password: str, argon2_default_rounds=55):
@@ -489,7 +619,7 @@ def load_password_encrypted_key(
     """
     with open(keypath, "rb") as f:
         encrypted_key = f.read()
-    return decrypt_string_with_password(encrypted_key, password)
+    return decrypt_string_with_password(encrypted_key, password).encode()
 
 
 def password_decrypt_non_string(token: bytes, password: str):
