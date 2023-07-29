@@ -200,7 +200,7 @@ def decrypt_file_with_password(
     os.rename(pre_filepath, to_be_filepath)
 
 
-def decrypt_hidden_directory(
+def decrypt_hidden_directory_old(
     target_dir_path: str,
     enc_dir_path: str,
     enc_rename_path: str,
@@ -223,6 +223,49 @@ def decrypt_hidden_directory(
     elif isinstance(keypath, bytes):
         key = keypath
 
+    renamed_to_path_enc = pickle_unpack(enc_rename_path)
+    renamed_to_path_bytes = decrypt_data(renamed_to_path_enc, key)
+    renamed_to_path = bytes_to_data_using_pickle(renamed_to_path_bytes)
+    renamed_to_path: dict[str, str]
+
+    print("Renaming directory contents...")
+    for seq, fp in list(renamed_to_path.items())[::-1]:
+        os.rename(seq, fp)
+
+    print("Decrypting directory...")
+    decrypt_directory(target_dir_path, enc_dir_path, key, True)
+
+    if target_dir_path != enc_dir_path:
+        print("Renaming directory contents...")
+        for seq, fp in renamed_to_path.items():
+            os.rename(fp, seq)
+
+    print("Decryption done.\n")
+
+
+def decrypt_hidden_directory(
+    target_dir_path: str,
+    enc_dir_path: str,
+    enc_rename_path,
+    key: bytes = None,
+    keypath: str = None,
+):
+    """Decrypt a hidden directory. This is the decrytion function to `encrypt_and_hide_directory`.
+
+    Args:
+        target_dir_path (str): Path for the decrypted directory.
+        enc_dir_path (str): Path to the encrypted directory.
+        enc_rename_path (str): Path for the encrypted file containing the directory which has the new and the old file and directory names.
+        key (bytes, optional): Key as bytes. Defaults to None.
+        keypath (str | bytes, optional): Path to the key or alternativley the key itself. Defaults to None.
+    """
+    colored_print(Fore.GREEN + "decrypt_hidden_directory")
+    print("Reading names for directory contents...")
+    # renamed_to_path = pickle_unpack(rename_path)
+
+    if keypath != None:
+        with open(keypath, "rb") as f:
+            key = f.read()
     renamed_to_path_enc = pickle_unpack(enc_rename_path)
     renamed_to_path_bytes = decrypt_data(renamed_to_path_enc, key)
     renamed_to_path = bytes_to_data_using_pickle(renamed_to_path_bytes)
