@@ -328,6 +328,7 @@ def encrypt_and_hide_directory(
     enc_rename_path: str,
     key: bytes = None,
     keypath: str = None,
+    ignore_permission_denied: bool = True,
 ):
     """Encrypt and hide a directory. You might want to encrypt the key with a password using `save_password_encrypted_key`.
 
@@ -344,13 +345,16 @@ def encrypt_and_hide_directory(
     colored_print(Fore.GREEN + "encrypt_and_hide_directory")
     print("Encrypting directory...")
 
-    key = encrypt_directory(
+    key, fails = encrypt_directory(
         dir_path,
         enc_dir_path,
         keypath,
         key,
         error_if_enc_is_file=False,
+        ignore_permission_denied=ignore_permission_denied,
     )
+    if len(fails) != 0:
+        print("Failed to encrypt these files:", fails)    
 
     print("Directory encrypted.")
 
@@ -379,7 +383,7 @@ def encrypt_and_hide_directory(
         os.rename(fp, seq)
 
     print("Encryption done.\n")
-    return key
+    return key, fails
 
 
 def encrypt_data(data: bytes, key: bytes = None) -> tuple[bytes]:
@@ -406,6 +410,7 @@ def encrypt_directory(
     keypath: str | None = None,
     key: bytes = None,
     error_if_enc_is_file: bool = True,
+    ignore_permission_denied: bool = True,
 ):
     """Uses `encrypt_file` for all files in a directory. Keeps the original directory structure.
 
@@ -433,6 +438,7 @@ def encrypt_directory(
         mainpre_string="Progress on dirpaths: ",
         subpre_string="Progress on files in current dir: ",
     )
+    fails = []
     for main_index, (root, dirs, files) in enumerate(os.walk(dir_path)):
         sub_path = root.replace(dir_path, "")
         sub_path = sub_path.lstrip("\\")
@@ -440,7 +446,13 @@ def encrypt_directory(
         for sub_index, f in enumerate(files):
             fp = os.path.join(root, f)
             nfp = os.path.join(enc_dir_path, sub_path, f)
-            encrypt_file(fp, nfp, keypath, key, error_if_enc_is_file, False)
+            if ignore_permission_denied:
+                try:
+                    encrypt_file(fp, nfp, keypath, key, error_if_enc_is_file, False)
+                except PermissionError:
+                    fails.append(fp)
+            else:
+                encrypt_file(fp, nfp, keypath, key, error_if_enc_is_file, False)
             main_and_sub_progress_printer(
                 main_index + 1,
                 l1,
@@ -449,7 +461,7 @@ def encrypt_directory(
                 mainpre_string="Progress on dirpaths: ",
                 subpre_string="Progress on files in current dir: ",
             )
-    return key
+    return key, fails
 
 
 def encrypt_file(
