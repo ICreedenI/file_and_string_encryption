@@ -15,6 +15,7 @@ from .file_and_string_encryption import (
     encrypt_file_with_password,
     encrypt_string_with_password,
     generate_password,
+    generate_semi_random_alphanumeric_string,
     get_random_key,
     hash_password_with_argon2,
     load_password_encrypted_key,
@@ -22,4 +23,4 @@ from .file_and_string_encryption import (
     verfiy_hashed_password_with_argon2,
 )
 
-__version__ = "0.0.6"
+__version__ = "0.0.7"

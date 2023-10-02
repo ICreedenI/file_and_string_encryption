@@ -246,7 +246,7 @@ def decrypt_hidden_directory_old(
 def decrypt_hidden_directory(
     target_dir_path: str,
     enc_dir_path: str,
-    enc_rename_path,
+    enc_rename_path: str,
     key: bytes = None,
     keypath: str = None,
 ):
@@ -322,6 +322,21 @@ def decrypt_string_with_password(token: bytes, password: str) -> str:
     return pw
 
 
+def dehide_directory(
+    enc_rename_path: str,
+    key: bytes = None,
+):
+    """From random names to original names (backwards hide_directory)."""
+    renamed_to_path_enc = pickle_unpack(enc_rename_path)
+    renamed_to_path_bytes = decrypt_data(renamed_to_path_enc, key)
+    renamed_to_path = bytes_to_data_using_pickle(renamed_to_path_bytes)
+    renamed_to_path: dict[str, str]
+
+    print("Renaming directory contents...")
+    for seq, fp in list(renamed_to_path.items())[::-1]:
+        os.rename(seq, fp)
+
+
 def encrypt_and_hide_directory(
     dir_path: str,
     enc_dir_path: str,
@@ -354,7 +369,7 @@ def encrypt_and_hide_directory(
         ignore_permission_denied=ignore_permission_denied,
     )
     if len(fails) != 0:
-        print("Failed to encrypt these files:", fails)    
+        print("Failed to encrypt these files:", fails)
 
     print("Directory encrypted.")
 
@@ -380,7 +395,10 @@ def encrypt_and_hide_directory(
 
     print("Renaming directory contents...")
     for seq, fp in seq_to_path.items():
-        os.rename(fp, seq)
+        try:
+            os.rename(fp, seq)
+        except:
+            fails.append((fp, seq))
 
     print("Encryption done.\n")
     return key, fails
@@ -617,7 +635,8 @@ def generate_password(length=16):
     return password
 
 
-def generate_random_alphanumeric_string(length=25):
+def generate_semi_random_alphanumeric_string(length=25):
+    """NOT SECURE! DO NOT USE FOR PASSWORDS!!!"""
     chars = ascii_uppercase + digits
     random_str = "".join(choice(chars) for _ in range(length))
     return random_str
@@ -634,9 +653,9 @@ def get_random_key():
 
 def get_seq_for_seq_to_path(dirpath, seq_to_path=None):
     "A function for `encrypt_and_hide_directory`"
-    seq = os.path.join(dirpath, generate_random_alphanumeric_string())
+    seq = os.path.join(dirpath, generate_semi_random_alphanumeric_string())
     # while seq in seq_to_path.keys():
-    #     seq = os.path.join(dirpath, generate_random_alphanumeric_string())
+    #     seq = os.path.join(dirpath, generate_semi_random_alphanumeric_string())
     return seq
 
 
@@ -657,6 +676,43 @@ def hash_password_with_argon2(password: str, argon2_default_rounds=55):
     )
     hashed_password = context.hash(password)
     return hashed_password
+
+
+def hide_directory(
+    enc_dir_path: str,
+    enc_rename_path: str,
+    key: bytes = None,
+):
+    print("Getting new names for directory contents...")
+    if key == None:
+        key = get_random_key()
+
+    seq_to_path = {}
+    for dirpath, dirnames, filenames in os.walk(enc_dir_path, topdown=False):
+        for f in filenames:
+            fp = os.path.join(dirpath, f)
+            seq = get_seq_for_seq_to_path(dirpath, seq_to_path)
+            seq_to_path[seq] = fp
+        for f in dirnames:
+            fp = os.path.join(dirpath, f)
+            seq = get_seq_for_seq_to_path(dirpath, seq_to_path)
+            seq_to_path[seq] = fp
+
+    seq_to_path_bytes = data_to_bytes_using_pickle(seq_to_path)
+    seq_to_path_enc, k = encrypt_data(seq_to_path_bytes, key)
+
+    print("Saving new names for directory contents...")
+    # pickle_pack(seq_to_path, rename_path)
+    pickle_pack(seq_to_path_enc, enc_rename_path)
+
+    print("Renaming directory contents...")
+    fails = []
+    for seq, fp in seq_to_path.items():
+        try:
+            os.rename(fp, seq)
+        except:
+            fails.append((fp, seq))
+    return key, fails
 
 
 def load_password_encrypted_key(
